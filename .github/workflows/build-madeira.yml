@@ -15,9 +15,9 @@ jobs:
 
       - name: Setup Windows Runtimes (VC++)
         run: |
-          echo "Creando carpetas e inyectando librerías VC++..."
-          mkdir -p app/Resources/redist || true
-          mkdir -p Resources/redist || true
+          echo "Creando carpetas de recursos..."
+          mkdir -p app/Resources/redist 2>/dev/null || true
+          mkdir -p Resources/redist 2>/dev/null || true
           curl -L -o vc_redist.x64.exe https://aka.ms
           cp vc_redist.x64.exe app/Resources/redist/ 2>/dev/null || true
           cp vc_redist.x64.exe Resources/redist/ 2>/dev/null || true
@@ -32,25 +32,24 @@ jobs:
           echo "Instalando dependencias de C++..."
           brew install xcbeautify cmake ninja
 
-      - name: Build IPA via Script
+      - name: Compile App
         run: |
-          echo "Buscando y ejecutando el script oficial..."
-          chmod +x ./tools/build_ipa.sh 2>/dev/null || true
-          chmod +x ./**/tools/build_ipa.sh 2>/dev/null || true
+          echo "Localizando el proyecto de Xcode de forma agresiva..."
+          # Busca cualquier espacio de trabajo de Xcode (.xcworkspace)
+          WORKSPACE_PATH=$(find . -name "*.xcworkspace" -print -quit)
           
-          if [ -f "./tools/build_ipa.sh" ]; then
-            ./tools/build_ipa.sh
+          if [ ! -z "$WORKSPACE_PATH" ]; then
+            cd $(dirname "$WORKSPACE_PATH")
+            echo "Proyecto encontrado en: $WORKSPACE_PATH"
+            xcodebuild -workspace *.xcworkspace -scheme Madeira -configuration Release -archivePath build/Madeira.xcarchive archive NO_CODE_SIGNING=YES
+            xcodebuild -exportArchive -archivePath build/Madeira.xcarchive -exportPath build/ -exportOptionsPlist tools/exportOptions.plist 2>/dev/null || mkdir -p build/Payload && cp -r build/Madeira.xcarchive/Products/Applications/*.app build/Payload/ && cd build && zip -r Madeira.ipa Payload/
           else
-            # Si está escondido en un submódulo, lo ejecutamos desde ahí
-            SCRIPT_PATH=$(find . -name "build_ipa.sh" -print -quit)
-            if [ ! -z "$SCRIPT_PATH" ]; then
-              chmod +x "$SCRIPT_PATH"
-              cd $(dirname "$SCRIPT_PATH")/.. && ./tools/build_ipa.sh
-            else
-              echo "No se encontró el script, forzando compilación manual xcodebuild"
-              xcodebuild -workspace *.xcworkspace -scheme Madeira -configuration Release -archivePath build/Madeira.xcarchive archive
-              xcodebuild -exportArchive -archivePath build/Madeira.xcarchive -exportPath build/ -exportOptionsPlist tools/exportOptions.plist
-            fi
+            # Si es un proyecto plano (.xcodeproj)
+            PROJECT_PATH=$(find . -name "*.xcodeproj" -print -quit)
+            cd $(dirname "$PROJECT_PATH")
+            echo "Proyecto plano encontrado en: $PROJECT_PATH"
+            xcodebuild -project *.xcodeproj -scheme Madeira -configuration Release -archivePath build/Madeira.xcarchive archive NO_CODE_SIGNING=YES
+            mkdir -p build/Payload && cp -r build/Madeira.xcarchive/Products/Applications/*.app build/Payload/ && cd build && zip -r Madeira.ipa Payload/
           fi
 
       - name: Upload Custom IPA
