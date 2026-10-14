@@ -15,12 +15,17 @@ jobs:
 
       - name: Setup Windows Runtimes (VC++)
         run: |
-          echo "Descargando e inyectando librerías VC++ con el nombre correcto..."
-          # Creamos la ruta exacta donde el proyecto busca el runtime
-          mkdir -p app/Madeira/Resources
+          echo "Descargando e inyectando librerías VC++ con el nombre exacto de Xcode..."
+          # Creamos la carpeta de la app por si acaso
+          mkdir -p app/Madeira
           
-          # Descargamos el instalador oficial de Microsoft directamente con el nombre exacto que pide Xcode
-          curl -L -o app/Madeira/Resources/x64-vcruntime https://aka.ms
+          # Descargamos el instalador usando exactamente el nombre 'x86_64-vcruntime'
+          curl -L -o x86_64-vcruntime https://aka.ms
+          
+          # Lo copiamos en todas las ubicaciones posibles dentro del proyecto para que Xcode lo vea sí o sí
+          cp x86_64-vcruntime app/
+          cp x86_64-vcruntime app/Madeira/
+          cp x86_64-vcruntime app/Madeira/Resources/ 2>/dev/null || true
 
       - name: Set up Xcode version
         uses: maxim-lobanov/setup-xcode@v1
