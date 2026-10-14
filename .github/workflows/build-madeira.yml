@@ -1,0 +1,35 @@
+name: Build Madeira Custom IPA
+
+on:
+  workflow_dispatch:
+
+jobs:
+  build:
+    runs-on: macos-latest
+    steps:
+      - name: Checkout Repository
+        uses: actions/checkout@v4
+        with:
+          submodules: 'recursive'
+
+      - name: Setup Windows Runtimes (VC++)
+        run: |
+          echo "Descargando e inyectando librerías VC++..."
+          mkdir -p app/Resources/redist
+          curl -L -o app/Resources/redist/vc_redist.x64.exe https://aka.ms
+
+      - name: Set up Xcode version
+        uses: maxim-lobanov/setup-xcode@v1
+        with:
+          xcode-version: 'latest'
+
+      - name: Build IPA
+        run: |
+          chmod +x ./tools/build_ipa.sh
+          ./tools/build_ipa.sh
+
+      - name: Upload Custom IPA
+        uses: actions/upload-artifact@v4
+        with:
+          name: Madeira-Custom-VC-IPA
+          path: build/*.ipa
