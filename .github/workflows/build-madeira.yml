@@ -11,13 +11,16 @@ jobs:
         uses: actions/checkout@v4
         with:
           submodules: 'recursive'
+          fetch-depth: 0
 
       - name: Setup Windows Runtimes (VC++)
         run: |
-          echo "Descargando e inyectando librerías VC++..."
-          mkdir -p Resources/redist || mkdir -p app/Resources/redist || true
+          echo "Creando carpetas e inyectando librerías VC++..."
+          mkdir -p app/Resources/redist || true
+          mkdir -p Resources/redist || true
           curl -L -o vc_redist.x64.exe https://aka.ms
-          cp vc_redist.x64.exe Resources/redist/ 2>/dev/null || cp vc_redist.x64.exe app/Resources/redist/ 2>/dev/null || true
+          cp vc_redist.x64.exe app/Resources/redist/ 2>/dev/null || true
+          cp vc_redist.x64.exe Resources/redist/ 2>/dev/null || true
 
       - name: Set up Xcode version
         uses: maxim-lobanov/setup-xcode@v1
@@ -26,40 +29,32 @@ jobs:
 
       - name: Install Build Dependencies
         run: |
-          echo "Instalando dependencias del sistema..."
+          echo "Instalando dependencias de C++..."
           brew install xcbeautify cmake ninja
 
-      - name: Setup Flutter
-        uses: subosito/flutter-action@v2
-        with:
-          channel: 'stable'
-          architecture: x64
-
-      - name: Find and Install Flutter Packages
+      - name: Build IPA via Script
         run: |
-          echo "Buscando la raíz de Flutter automáticamente..."
-          if [ -f "pubspec.yaml" ]; then
-            flutter pub get
-          elif [ -f "app/pubspec.yaml" ]; then
-            cd app && flutter pub get
+          echo "Buscando y ejecutando el script oficial..."
+          chmod +x ./tools/build_ipa.sh 2>/dev/null || true
+          chmod +x ./**/tools/build_ipa.sh 2>/dev/null || true
+          
+          if [ -f "./tools/build_ipa.sh" ]; then
+            ./tools/build_ipa.sh
           else
-            echo "Buscando pubspec.yaml dinámicamente..."
-            cd $(dirname $(find . -name "pubspec.yaml" -print -quit)) && flutter pub get
-          fi
-
-      - name: Build IPA via Flutter
-        run: |
-          echo "Compilando la aplicación Madeira..."
-          if [ -f "pubspec.yaml" ]; then
-            flutter build ipa --release --no-codesign
-          elif [ -f "app/pubspec.yaml" ]; then
-            cd app && flutter build ipa --release --no-codesign
-          else
-            cd $(dirname $(find . -name "pubspec.yaml" -print -quit)) && flutter build ipa --release --no-codesign
+            # Si está escondido en un submódulo, lo ejecutamos desde ahí
+            SCRIPT_PATH=$(find . -name "build_ipa.sh" -print -quit)
+            if [ ! -z "$SCRIPT_PATH" ]; then
+              chmod +x "$SCRIPT_PATH"
+              cd $(dirname "$SCRIPT_PATH")/.. && ./tools/build_ipa.sh
+            else
+              echo "No se encontró el script, forzando compilación manual xcodebuild"
+              xcodebuild -workspace *.xcworkspace -scheme Madeira -configuration Release -archivePath build/Madeira.xcarchive archive
+              xcodebuild -exportArchive -archivePath build/Madeira.xcarchive -exportPath build/ -exportOptionsPlist tools/exportOptions.plist
+            fi
           fi
 
       - name: Upload Custom IPA
         uses: actions/upload-artifact@v4
         with:
           name: Madeira-Custom-VC-IPA
-          path: "**/build/ios/ipa/*.ipa"
+          path: "**/*.ipa"
