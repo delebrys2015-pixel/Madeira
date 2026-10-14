@@ -15,8 +15,9 @@ jobs:
       - name: Setup Windows Runtimes (VC++)
         run: |
           echo "Descargando e inyectando librerías VC++..."
-          mkdir -p app/Resources/redist
-          curl -L -o app/Resources/redist/vc_redist.x64.exe https://aka.ms
+          mkdir -p Resources/redist || mkdir -p app/Resources/redist || true
+          curl -L -o vc_redist.x64.exe https://aka.ms
+          cp vc_redist.x64.exe Resources/redist/ 2>/dev/null || cp vc_redist.x64.exe app/Resources/redist/ 2>/dev/null || true
 
       - name: Set up Xcode version
         uses: maxim-lobanov/setup-xcode@v1
@@ -34,20 +35,31 @@ jobs:
           channel: 'stable'
           architecture: x64
 
-      - name: Install Flutter Packages
-        working-directory: app
+      - name: Find and Install Flutter Packages
         run: |
-          echo "Descargando paquetes de Flutter..."
-          flutter pub get
+          echo "Buscando la raíz de Flutter automáticamente..."
+          if [ -f "pubspec.yaml" ]; then
+            flutter pub get
+          elif [ -f "app/pubspec.yaml" ]; then
+            cd app && flutter pub get
+          else
+            echo "Buscando pubspec.yaml dinámicamente..."
+            cd $(dirname $(find . -name "pubspec.yaml" -print -quit)) && flutter pub get
+          fi
 
       - name: Build IPA via Flutter
-        working-directory: app
         run: |
           echo "Compilando la aplicación Madeira..."
-          flutter build ipa --release --no-codesign
+          if [ -f "pubspec.yaml" ]; then
+            flutter build ipa --release --no-codesign
+          elif [ -f "app/pubspec.yaml" ]; then
+            cd app && flutter build ipa --release --no-codesign
+          else
+            cd $(dirname $(find . -name "pubspec.yaml" -print -quit)) && flutter build ipa --release --no-codesign
+          fi
 
       - name: Upload Custom IPA
         uses: actions/upload-artifact@v4
         with:
           name: Madeira-Custom-VC-IPA
-          path: app/build/ios/ipa/*.ipa
+          path: "**/build/ios/ipa/*.ipa"
