@@ -25,22 +25,27 @@ jobs:
 
       - name: Install Build Dependencies
         run: |
-          echo "Instalando dependencias necesarias para Madeira..."
+          echo "Instalando dependencias del sistema..."
           brew install xcbeautify cmake ninja
-          
+
       - name: Setup Flutter
         uses: subosito/flutter-action@v2
         with:
           channel: 'stable'
           architecture: x64
 
-      - name: Build IPA
+      - name: Install Flutter Packages
         run: |
-          chmod +x ./tools/build_ipa.sh
-          ./tools/build_ipa.sh
+          echo "Descargando paquetes de Flutter..."
+          flutter pub get
+
+      - name: Build IPA via Flutter
+        run: |
+          echo "Compilando la aplicación Madeira..."
+          flutter build ipa --release --no-codesign
 
       - name: Upload Custom IPA
         uses: actions/upload-artifact@v4
         with:
           name: Madeira-Custom-VC-IPA
-          path: build/*.ipa
+          path: build/ios/ipa/*.ipa
