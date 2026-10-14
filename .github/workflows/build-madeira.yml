@@ -15,12 +15,12 @@ jobs:
 
       - name: Setup Windows Runtimes (VC++)
         run: |
-          echo "Creando carpetas de recursos..."
-          mkdir -p app/Resources/redist 2>/dev/null || true
-          mkdir -p Resources/redist 2>/dev/null || true
-          curl -L -o vc_redist.x64.exe https://aka.ms
-          cp vc_redist.x64.exe app/Resources/redist/ 2>/dev/null || true
-          cp vc_redist.x64.exe Resources/redist/ 2>/dev/null || true
+          echo "Descargando e inyectando librerías VC++ con el nombre correcto..."
+          # Creamos la ruta exacta donde el proyecto busca el runtime
+          mkdir -p app/Madeira/Resources
+          
+          # Descargamos el instalador oficial de Microsoft directamente con el nombre exacto que pide Xcode
+          curl -L -o app/Madeira/Resources/x64-vcruntime https://aka.ms
 
       - name: Set up Xcode version
         uses: maxim-lobanov/setup-xcode@v1
@@ -34,16 +34,15 @@ jobs:
 
       - name: Compile App
         run: |
-          echo "Buscando y compilando el proyecto..."
+          echo "Compilando el proyecto..."
           PROJECT_PATH=$(find . -name "*.xcodeproj" -print -quit)
           
           if [ ! -z "$PROJECT_PATH" ]; then
             cd $(dirname "$PROJECT_PATH")
             echo "Proyecto encontrado en: $PROJECT_PATH"
-            # Forzamos la compilación para un dispositivo iOS físico real, evitando simuladores
+            
             xcodebuild -project *.xcodeproj -scheme Madeira -configuration Release -destination 'generic/platform=iOS' -archivePath build/Madeira.xcarchive archive NO_CODE_SIGNING=YES CODE_SIGNING_ALLOWED=NO
             
-            # Empaquetamos la app compilada en formato .ipa manualmente
             mkdir -p build/Payload
             cp -r build/Madeira.xcarchive/Products/Applications/*.app build/Payload/ 2>/dev/null || cp -r build/Madeira.xcarchive/Products/Applications/Madeira.app build/Payload/ || true
             cd build && zip -r Madeira.ipa Payload/
