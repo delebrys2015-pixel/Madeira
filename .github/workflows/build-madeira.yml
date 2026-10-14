@@ -34,26 +34,26 @@ jobs:
 
       - name: Compile App
         run: |
-          echo "Localizando el proyecto de Xcode de forma agresiva..."
-          # Busca cualquier espacio de trabajo de Xcode (.xcworkspace)
-          WORKSPACE_PATH=$(find . -name "*.xcworkspace" -print -quit)
+          echo "Buscando y compilando el proyecto..."
+          PROJECT_PATH=$(find . -name "*.xcodeproj" -print -quit)
           
-          if [ ! -z "$WORKSPACE_PATH" ]; then
-            cd $(dirname "$WORKSPACE_PATH")
-            echo "Proyecto encontrado en: $WORKSPACE_PATH"
-            xcodebuild -workspace *.xcworkspace -scheme Madeira -configuration Release -archivePath build/Madeira.xcarchive archive NO_CODE_SIGNING=YES
-            xcodebuild -exportArchive -archivePath build/Madeira.xcarchive -exportPath build/ -exportOptionsPlist tools/exportOptions.plist 2>/dev/null || mkdir -p build/Payload && cp -r build/Madeira.xcarchive/Products/Applications/*.app build/Payload/ && cd build && zip -r Madeira.ipa Payload/
-          else
-            # Si es un proyecto plano (.xcodeproj)
-            PROJECT_PATH=$(find . -name "*.xcodeproj" -print -quit)
+          if [ ! -z "$PROJECT_PATH" ]; then
             cd $(dirname "$PROJECT_PATH")
-            echo "Proyecto plano encontrado en: $PROJECT_PATH"
-            xcodebuild -project *.xcodeproj -scheme Madeira -configuration Release -archivePath build/Madeira.xcarchive archive NO_CODE_SIGNING=YES
-            mkdir -p build/Payload && cp -r build/Madeira.xcarchive/Products/Applications/*.app build/Payload/ && cd build && zip -r Madeira.ipa Payload/
+            echo "Proyecto encontrado en: $PROJECT_PATH"
+            # Forzamos la compilación para un dispositivo iOS físico real, evitando simuladores
+            xcodebuild -project *.xcodeproj -scheme Madeira -configuration Release -destination 'generic/platform=iOS' -archivePath build/Madeira.xcarchive archive NO_CODE_SIGNING=YES CODE_SIGNING_ALLOWED=NO
+            
+            # Empaquetamos la app compilada en formato .ipa manualmente
+            mkdir -p build/Payload
+            cp -r build/Madeira.xcarchive/Products/Applications/*.app build/Payload/ 2>/dev/null || cp -r build/Madeira.xcarchive/Products/Applications/Madeira.app build/Payload/ || true
+            cd build && zip -r Madeira.ipa Payload/
+          else
+            echo "No se encontró ningún archivo .xcodeproj"
+            exit 1
           fi
 
       - name: Upload Custom IPA
         uses: actions/upload-artifact@v4
         with:
           name: Madeira-Custom-VC-IPA
-          path: "**/*.ipa"
+          path: "**/build/*.ipa"
