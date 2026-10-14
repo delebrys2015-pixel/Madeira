@@ -23,6 +23,17 @@ jobs:
         with:
           xcode-version: 'latest'
 
+      - name: Install Build Dependencies
+        run: |
+          echo "Instalando dependencias necesarias para Madeira..."
+          brew install xcbeautify cmake ninja
+          
+      - name: Setup Flutter
+        uses: subosito/flutter-action@v2
+        with:
+          channel: 'stable'
+          architecture: x64
+
       - name: Build IPA
         run: |
           chmod +x ./tools/build_ipa.sh
