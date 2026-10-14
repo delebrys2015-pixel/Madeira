@@ -35,11 +35,13 @@ jobs:
           architecture: x64
 
       - name: Install Flutter Packages
+        working-directory: app
         run: |
           echo "Descargando paquetes de Flutter..."
           flutter pub get
 
       - name: Build IPA via Flutter
+        working-directory: app
         run: |
           echo "Compilando la aplicación Madeira..."
           flutter build ipa --release --no-codesign
@@ -48,4 +50,4 @@ jobs:
         uses: actions/upload-artifact@v4
         with:
           name: Madeira-Custom-VC-IPA
-          path: build/ios/ipa/*.ipa
+          path: app/build/ios/ipa/*.ipa
